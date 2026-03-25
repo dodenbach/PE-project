@@ -141,13 +141,13 @@ def render_pro_forma(site_context=None):
             xaxis=dict(tickfont=dict(color="#aaa", family="Courier New")),
             yaxis=dict(showticklabels=False, showgrid=False),
         )
-        st.plotly_chart(cost_fig, use_container_width=True)
+        st.plotly_chart(cost_fig, width="stretch")
 
         # Sensitivity table
         st.markdown("##### Sensitivity: IRR by Capture Rate x Revenue/Stop")
         st.dataframe(
             pf["sensitivity"],
-            use_container_width=True,
+            width="stretch",
         )
 
     # Comparable transactions
@@ -164,7 +164,7 @@ def render_pro_forma(site_context=None):
             "Acres": comp["acres"],
             "Source": comp["source"],
         })
-    st.dataframe(pd.DataFrame(comps_data), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(comps_data), width="stretch", hide_index=True)
 
     # Cap rate benchmarks
     col_bench, col_export = st.columns([2, 1])
@@ -173,7 +173,7 @@ def render_pro_forma(site_context=None):
         bench_rows = []
         for sector, (low, high) in CAP_RATE_BENCHMARKS.items():
             bench_rows.append({"Sector": sector, "Range": f"{low}% – {high}%"})
-        st.dataframe(pd.DataFrame(bench_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(bench_rows), width="stretch", hide_index=True)
 
     with col_export:
         st.markdown("##### Export")

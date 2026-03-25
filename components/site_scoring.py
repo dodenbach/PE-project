@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 import pandas as pd
 
 from analysis.opportunity_score import score_gap_zone, score_label, score_color
-from data.fetch_aadt import get_aadt_at_lon
-from data.land_costs import get_land_cost, get_state_at_lon, classify_location
+from sources.fetch_aadt import get_aadt_at_lon
+from sources.land_costs import get_land_cost, get_state_at_lon, classify_location
 
 
 def render_site_scoring(gaps_df: pd.DataFrame, corridor: str):
@@ -87,7 +87,7 @@ def render_site_scoring(gaps_df: pd.DataFrame, corridor: str):
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col_details:
         st.markdown("##### Site Details")

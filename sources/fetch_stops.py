@@ -31,7 +31,7 @@ def fetch_stops(corridor: str) -> pd.DataFrame:
 def _fetch_stops_live(corridor: str) -> pd.DataFrame:
     """Query Overpass for truck stops along a corridor."""
     import requests
-    from data.fetch_routes import CORRIDOR_BBOXES
+    from sources.fetch_routes import CORRIDOR_BBOXES
 
     bbox = CORRIDOR_BBOXES.get(corridor)
     if bbox is None:

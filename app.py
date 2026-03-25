@@ -62,7 +62,7 @@ with st.sidebar:
 @st.cache_data(show_spinner="Fetching route geometry...", ttl=3600)
 def load_route(corridor):
     try:
-        from data.fetch_routes import fetch_route
+        from sources.fetch_routes import fetch_route
         return fetch_route(corridor)
     except Exception as e:
         st.warning(f"Could not fetch route from Overpass API: {e}")
@@ -72,7 +72,7 @@ def load_route(corridor):
 @st.cache_data(show_spinner="Fetching truck stops...", ttl=3600)
 def load_stops(corridor):
     try:
-        from data.fetch_stops import fetch_stops
+        from sources.fetch_stops import fetch_stops
         return fetch_stops(corridor)
     except Exception as e:
         st.warning(f"Could not fetch stops from Overpass API: {e}")
@@ -108,7 +108,7 @@ if route_df.empty:
 tab1, tab2, tab3 = st.tabs(["Corridor Explorer", "Site Scoring", "Pro Forma"])
 
 with tab1:
-    from data.fetch_routes import get_corridor_center
+    from sources.fetch_routes import get_corridor_center
     from components.corridor_map import build_corridor_map
 
     center = get_corridor_center(corridor)
@@ -128,7 +128,7 @@ with tab1:
         display_df.columns = ["Gap (mi)", "Severity", "Stop Before", "Stop After", "Lat", "Lon"]
         display_df.index = range(1, len(display_df) + 1)
         display_df.index.name = "#"
-        st.dataframe(display_df, use_container_width=True)
+        st.dataframe(display_df, width="stretch")
     else:
         st.success("No significant gaps found on this corridor at the current threshold.")
 
