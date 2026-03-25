@@ -4,7 +4,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-from analysis.pro_forma import (
+from engine.pro_forma import (
     calculate_pro_forma, BUILD_TYPES, CAP_RATE_BENCHMARKS, COMPARABLE_TRANSACTIONS,
 )
 

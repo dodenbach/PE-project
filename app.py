@@ -80,7 +80,7 @@ def load_stops(corridor):
 
 
 def run_gap_analysis(route_df, stops_df, gap_threshold):
-    from analysis.hos_gaps import find_gap_zones
+    from engine.hos_gaps import find_gap_zones
     return find_gap_zones(route_df, stops_df, gap_threshold)
 
 
@@ -109,7 +109,7 @@ tab1, tab2, tab3 = st.tabs(["Corridor Explorer", "Site Scoring", "Pro Forma"])
 
 with tab1:
     from sources.fetch_routes import get_corridor_center
-    from components.corridor_map import build_corridor_map
+    from panels.corridor_map import build_corridor_map
 
     center = get_corridor_center(corridor)
     m = build_corridor_map(route_df, stops_df, gaps_df, center=center, zoom=5)
@@ -134,9 +134,9 @@ with tab1:
 
 
 with tab2:
-    from components.site_scoring import render_site_scoring
+    from panels.site_scoring import render_site_scoring
     site_context = render_site_scoring(gaps_df, corridor)
 
 with tab3:
-    from components.pro_forma_panel import render_pro_forma
+    from panels.pro_forma_panel import render_pro_forma
     render_pro_forma(site_context=site_context)

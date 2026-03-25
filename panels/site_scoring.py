@@ -4,7 +4,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-from analysis.opportunity_score import score_gap_zone, score_label, score_color
+from engine.opportunity_score import score_gap_zone, score_label, score_color
 from sources.fetch_aadt import get_aadt_at_lon
 from sources.land_costs import get_land_cost, get_state_at_lon, classify_location
 
