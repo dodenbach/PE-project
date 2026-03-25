@@ -1,7 +1,7 @@
 """Truck Stop Site Screener — main Streamlit entrypoint."""
 
 import streamlit as st
-from streamlit_folium import st_folium
+import pandas as pd
 
 st.set_page_config(
     layout="wide",
@@ -59,47 +59,50 @@ with st.sidebar:
     )
 
 
-@st.cache_data(show_spinner="Fetching route geometry...")
+@st.cache_data(show_spinner="Fetching route geometry...", ttl=3600)
 def load_route(corridor):
-    from data.fetch_routes import fetch_route
-    return fetch_route(corridor)
+    try:
+        from data.fetch_routes import fetch_route
+        return fetch_route(corridor)
+    except Exception as e:
+        st.warning(f"Could not fetch route from Overpass API: {e}")
+        return pd.DataFrame(columns=["lat", "lon", "sequence"])
 
 
-@st.cache_data(show_spinner="Fetching truck stops...")
+@st.cache_data(show_spinner="Fetching truck stops...", ttl=3600)
 def load_stops(corridor):
-    from data.fetch_stops import fetch_stops
-    return fetch_stops(corridor)
+    try:
+        from data.fetch_stops import fetch_stops
+        return fetch_stops(corridor)
+    except Exception as e:
+        st.warning(f"Could not fetch stops from Overpass API: {e}")
+        return pd.DataFrame(columns=["name", "operator", "lat", "lon", "is_major"])
 
 
-@st.cache_data(show_spinner="Running gap analysis...")
-def run_gap_analysis(corridor, gap_threshold):
+def run_gap_analysis(route_df, stops_df, gap_threshold):
     from analysis.hos_gaps import find_gap_zones
-    route_df = load_route(corridor)
-    stops_df = load_stops(corridor)
-    gaps_df = find_gap_zones(route_df, stops_df, gap_threshold)
-    return gaps_df
+    return find_gap_zones(route_df, stops_df, gap_threshold)
 
 
 # Load data
-try:
-    route_df = load_route(corridor)
-    stops_df = load_stops(corridor)
-    gaps_df = run_gap_analysis(corridor, gap_threshold)
+route_df = load_route(corridor)
+stops_df = load_stops(corridor)
+gaps_df = run_gap_analysis(route_df, stops_df, gap_threshold)
 
-    # Summary stats in sidebar
-    with st.sidebar:
-        st.markdown("### Quick Stats")
-        st.metric("Route Points", f"{len(route_df):,}")
-        st.metric("Truck Stops Found", f"{len(stops_df):,}")
-        st.metric("Gap Zones", f"{len(gaps_df):,}")
-        if not gaps_df.empty:
-            st.metric("Largest Gap", f"{gaps_df['gap_miles'].max():.0f} mi")
+# Summary stats in sidebar
+with st.sidebar:
+    st.markdown("### Quick Stats")
+    st.metric("Route Points", f"{len(route_df):,}")
+    st.metric("Truck Stops Found", f"{len(stops_df):,}")
+    st.metric("Gap Zones", f"{len(gaps_df):,}")
+    if not gaps_df.empty:
+        st.metric("Largest Gap", f"{gaps_df['gap_miles'].max():.0f} mi")
 
-except Exception as e:
-    st.error(f"Error loading data: {e}")
-    st.info("The Overpass API may be rate-limited. Try again in a few seconds.")
-    st.stop()
-
+if route_df.empty:
+    st.warning(
+        "The Overpass API did not return route data. This can happen due to rate limiting "
+        "or network issues from the cloud host. Try refreshing in a few seconds."
+    )
 
 # Three tabs
 tab1, tab2, tab3 = st.tabs(["Corridor Explorer", "Site Scoring", "Pro Forma"])
@@ -110,7 +113,13 @@ with tab1:
 
     center = get_corridor_center(corridor)
     m = build_corridor_map(route_df, stops_df, gaps_df, center=center, zoom=5)
-    st_folium(m, width=None, height=600, returned_objects=[])
+
+    try:
+        from streamlit_folium import st_folium
+        st_folium(m, width=None, height=600)
+    except Exception as e:
+        import folium.utilities
+        st.components.v1.html(m._repr_html_(), height=600)
 
     if not gaps_df.empty:
         st.markdown("##### Gap Zones Summary")
