@@ -1,33 +1,44 @@
-"""Real estate pro forma model for truck stop development."""
+"""Real estate pro forma model for truck stop development.
+
+Build cost sources:
+- Bare Lot: RSMeans site work estimates for rural commercial (gravel, grading, lighting, signage)
+- Basic: NATSO small-format fuel/c-store construction data, adjusted for rural interstate exits
+- Full Service: Love's Travel Stops 10-K filings, Pilot investor presentations (new-build cost per location)
+OpEx sources: NATSO independent operator benchmarks, adjusted by format
+"""
 
 import numpy as np
 import pandas as pd
 
-# Build type configurations
+# Build type configurations — updated to match industry reality
+# Sources: Love's 10-K (2023), Pilot/Flying J investor materials, NATSO new-build surveys
 BUILD_TYPES = {
     "Bare Lot": {
         "acres_range": (2, 5),
-        "build_cost_range": (50_000, 150_000),
-        "monthly_opex": 8_000,
-        "description": "Gravel lot with basic lighting and signage. Minimal infrastructure.",
+        "build_cost_range": (200_000, 500_000),
+        "monthly_opex": 6_000,
+        "description": "Gravel lot with basic lighting, signage, and portable restrooms. 20-40 parking spaces.",
         "default_acres": 3,
-        "default_build": 100_000,
+        "default_build": 350_000,
+        "max_daily_trucks": 40,  # physical capacity: 20-30 spaces x ~1.5 turnover
     },
     "Basic": {
         "acres_range": (5, 10),
-        "build_cost_range": (300_000, 600_000),
-        "monthly_opex": 25_000,
-        "description": "Paved lot with fuel pumps, restrooms, and a small convenience store.",
+        "build_cost_range": (3_500_000, 7_000_000),
+        "monthly_opex": 45_000,
+        "description": "Paved lot with 4-8 fuel pumps, restrooms, c-store, UST install. 40-80 parking spaces.",
         "default_acres": 7,
-        "default_build": 450_000,
+        "default_build": 5_500_000,
+        "max_daily_trucks": 250,
     },
     "Full Service": {
         "acres_range": (10, 20),
-        "build_cost_range": (1_500_000, 4_000_000),
-        "monthly_opex": 120_000,
-        "description": "Full-service facility with restaurant, showers, lounge, repair bay.",
+        "build_cost_range": (12_000_000, 22_000_000),
+        "monthly_opex": 130_000,
+        "description": "Full-service: 12+ fuel lanes, restaurant, showers, lounge, repair bay. 100-200 spaces.",
         "default_acres": 15,
-        "default_build": 2_750_000,
+        "default_build": 16_000_000,
+        "max_daily_trucks": 800,
     },
 }
 
@@ -45,7 +56,7 @@ def calculate_pro_forma(
     acres: float,
     build_type: str,
     daily_truck_volume: int,
-    capture_rate: float = 0.15,
+    capture_rate: float = 0.05,
     revenue_per_stop: float = 12.0,
     hold_years: int = 5,
     annual_revenue_growth: float = 0.03,
@@ -66,10 +77,15 @@ def calculate_pro_forma(
     monthly_opex = config["monthly_opex"]
     annual_opex = monthly_opex * 12
 
-    # Revenue
-    daily_stops = daily_truck_volume * capture_rate
+    # Revenue — cap daily stops at physical capacity
+    raw_daily_stops = daily_truck_volume * capture_rate
+    max_capacity = config.get("max_daily_trucks", 9999)
+    daily_stops = min(raw_daily_stops, max_capacity)
     daily_revenue = daily_stops * revenue_per_stop
     annual_gross_revenue = daily_revenue * 365
+
+    # Capacity flag
+    capacity_capped = raw_daily_stops > max_capacity
 
     # Year 1 NOI
     noi_year1 = annual_gross_revenue - annual_opex
@@ -113,6 +129,8 @@ def calculate_pro_forma(
         "cash_flows": cash_flows,
         "sensitivity": sensitivity,
         "build_type_config": config,
+        "capacity_capped": capacity_capped,
+        "max_daily_trucks": max_capacity,
     }
 
 
@@ -121,18 +139,20 @@ def build_sensitivity_table(
     annual_revenue_growth, annual_expense_growth, terminal_cap_rate,
 ) -> pd.DataFrame:
     """Build 5x5 sensitivity table: capture_rate vs revenue_per_stop -> IRR."""
-    capture_rates = [0.05, 0.10, 0.15, 0.20, 0.25]
-    revenues_per_stop = [6, 10, 14, 18, 22]
+    capture_rates = [0.02, 0.03, 0.04, 0.05, 0.08]
+    revenues_per_stop = [8, 10, 12, 15, 18]
 
     config = BUILD_TYPES.get(build_type, BUILD_TYPES["Bare Lot"])
     total_cost = land_cost_per_acre * acres + config["default_build"]
     annual_opex = config["monthly_opex"] * 12
+    max_cap = config.get("max_daily_trucks", 9999)
 
     rows = []
     for cr in capture_rates:
         row = {}
         for rps in revenues_per_stop:
-            annual_rev = daily_truck_volume * cr * rps * 365
+            daily = min(daily_truck_volume * cr, max_cap)
+            annual_rev = daily * rps * 365
             noi1 = annual_rev - annual_opex
 
             cfs = [-total_cost]
@@ -150,7 +170,7 @@ def build_sensitivity_table(
             row[f"${rps}/stop"] = f"{irr_val:.1f}%" if irr_val is not None else "N/A"
         rows.append(row)
 
-    df = pd.DataFrame(rows, index=[f"{int(cr*100)}% capture" for cr in capture_rates])
+    df = pd.DataFrame(rows, index=[f"{cr:.0%} capture" for cr in capture_rates])
     return df
 
 

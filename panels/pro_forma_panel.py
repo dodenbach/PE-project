@@ -61,18 +61,20 @@ def render_pro_forma(site_context=None):
 
         capture_rate = st.slider(
             "Capture Rate (%)",
-            min_value=5,
-            max_value=30,
-            value=15,
+            min_value=1,
+            max_value=10,
+            value=5,
             key="capture_rate_input",
+            help="% of passing AADT trucks that stop. Typical: 2-5% independent, 4-8% major chain.",
         ) / 100.0
 
         revenue_per_stop = st.slider(
-            "Revenue per Stop ($)",
+            "Net Revenue per Stop ($)",
             min_value=5,
             max_value=25,
             value=12,
             key="rps_input",
+            help="Net margin per truck visit (fuel margin + inside sales + parking). Source: NATSO.",
         )
 
         hold_years = st.slider(
@@ -118,6 +120,13 @@ def render_pro_forma(site_context=None):
         with m3:
             cap_display = f"{pf['cap_rate']:.1f}%"
             st.metric("Cap Rate", cap_display)
+
+        if pf.get("capacity_capped"):
+            st.warning(
+                f"Daily stops capped at {pf['max_daily_trucks']} "
+                f"(physical capacity for {build_type}). "
+                f"Raw demand: {daily_volume * capture_rate:.0f} trucks/day."
+            )
 
         m4, m5, m6 = st.columns(3)
         with m4:
