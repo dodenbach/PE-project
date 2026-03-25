@@ -105,11 +105,13 @@ def render_site_scoring(gaps_df: pd.DataFrame, corridor: str):
 
     st.divider()
 
-    # Zoning note
+    # Source citations
     st.caption(
-        f"Verify zoning with {state} DOT — most interstate exits are zoned I-2 or C-3 commercial. "
-        f"Source: USDA NASS Land Values 2024, FHWA Freight Analysis Framework."
+        f"Verify zoning with {state} DOT — most interstate exits are zoned I-2 or C-3 commercial."
     )
+    st.caption("AADT: Source: FHWA Highway Statistics, Freight Analysis Framework")
+    st.caption("Land cost: Source: USDA NASS Land Values 2023 Summary")
+    st.caption("Gap threshold: Source: FMCSA Hours of Service regulations (49 CFR Part 395)")
 
     return {
         "gap": gap,

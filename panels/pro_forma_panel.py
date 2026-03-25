@@ -94,6 +94,17 @@ def render_pro_forma(site_context=None):
         hold_years=hold_years,
     )
 
+    # Store inputs for audit
+    pf["_inputs"] = {
+        "daily_volume": daily_volume,
+        "capture_rate": capture_rate,
+        "revenue_per_stop": revenue_per_stop,
+        "hold_years": hold_years,
+        "land_cost": land_cost,
+        "acres": acres,
+        "build_type": build_type,
+    }
+
     with col_outputs:
         st.markdown("##### Returns")
 
@@ -116,6 +127,10 @@ def render_pro_forma(site_context=None):
         with m6:
             irr_display = f"{pf['irr']:.1f}%" if pf["irr"] is not None else "N/A"
             st.metric(f"Unlevered IRR ({hold_years}yr)", irr_display)
+
+        # Flag unusual cap rates
+        if pf["cap_rate"] < 3 or pf["cap_rate"] > 20:
+            st.error(f"Unusual cap rate ({pf['cap_rate']:.1f}%) — check inputs")
 
         st.divider()
 
@@ -145,10 +160,7 @@ def render_pro_forma(site_context=None):
 
         # Sensitivity table
         st.markdown("##### Sensitivity: IRR by Capture Rate x Revenue/Stop")
-        st.dataframe(
-            pf["sensitivity"],
-            width="stretch",
-        )
+        st.dataframe(pf["sensitivity"], width="stretch")
 
     # Comparable transactions
     st.divider()
@@ -165,6 +177,10 @@ def render_pro_forma(site_context=None):
             "Source": comp["source"],
         })
     st.dataframe(pd.DataFrame(comps_data), width="stretch", hide_index=True)
+    st.caption(
+        "Source: Peakstone/Alterra $490M portfolio, JP Morgan $95.2M portfolio, "
+        "Blackstone $189M loan (2024-2025)"
+    )
 
     # Cap rate benchmarks
     col_bench, col_export = st.columns([2, 1])
@@ -172,40 +188,61 @@ def render_pro_forma(site_context=None):
         st.markdown("##### Cap Rate Benchmarks")
         bench_rows = []
         for sector, (low, high) in CAP_RATE_BENCHMARKS.items():
-            bench_rows.append({"Sector": sector, "Range": f"{low}% – {high}%"})
+            bench_rows.append({"Sector": sector, "Range": f"{low}% - {high}%"})
         st.dataframe(pd.DataFrame(bench_rows), width="stretch", hide_index=True)
 
     with col_export:
-        st.markdown("##### Export")
+        st.markdown("##### Export for deal memo")
 
         # Build CSV export
+        corridor_info = ""
+        if site_context:
+            gap = site_context.get("gap")
+            if gap is not None:
+                corridor_info = f"({gap.get('mid_lat', ''):.4f}, {gap.get('mid_lon', ''):.4f})"
+
         export_data = {
             "Metric": [
-                "Corridor", "Build Type", "Acres", "Land Cost/Acre",
-                "Total Project Cost", "Annual Revenue", "NOI", "Cap Rate",
-                f"IRR ({hold_years}yr)", "Daily Stops", "Capture Rate", "Revenue/Stop",
+                "Location", "Build Type", "Acres", "Land Cost/Acre",
+                "Total Project Cost", "Annual Revenue", "Annual OpEx",
+                "NOI", "Cap Rate", f"IRR ({hold_years}yr)",
+                "Daily Stops", "Capture Rate", "Revenue/Stop",
+                "AADT Source", "Land Cost Source",
             ],
             "Value": [
-                site_context.get("gap", {}).get("mid_lon", "N/A") if site_context else "N/A",
+                corridor_info or "N/A",
                 build_type, acres, f"${land_cost:,.0f}",
                 f"${pf['total_project_cost']:,.0f}",
                 f"${pf['annual_gross_revenue']:,.0f}",
+                f"${pf['annual_opex']:,.0f}",
                 f"${pf['noi']:,.0f}",
                 f"{pf['cap_rate']:.1f}%",
                 f"{pf['irr']:.1f}%" if pf["irr"] else "N/A",
                 f"{pf['daily_stops']:.0f}",
                 f"{capture_rate:.0%}",
                 f"${revenue_per_stop}",
+                "FHWA Highway Statistics, Freight Analysis Framework",
+                "USDA NASS Land Values 2023 Summary",
             ],
         }
         export_df = pd.DataFrame(export_data)
         csv = export_df.to_csv(index=False)
 
         st.download_button(
-            label="Download Pro Forma (CSV)",
+            label="Export Pro Forma (CSV) — for deal memo",
             data=csv,
             file_name="truck_stop_pro_forma.csv",
             mime="text/csv",
         )
+
+    # Source citations
+    st.divider()
+    st.caption("AADT values: Source: FHWA Highway Statistics, Freight Analysis Framework")
+    st.caption("Land cost: Source: USDA NASS Land Values 2023 Summary")
+    st.caption("Construction costs: Source: RSMeans Construction Cost Indices")
+    st.caption(
+        "Estimates based on FHWA HPMS traffic data, USDA land value surveys, "
+        "and RSMeans construction cost indices. For illustrative purposes."
+    )
 
     return pf
