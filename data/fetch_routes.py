@@ -1,6 +1,7 @@
-"""Fetch interstate highway geometry from Overpass API."""
+"""Fetch interstate highway geometry — static data with Overpass API fallback."""
 
-import requests
+import json
+import os
 import pandas as pd
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -14,9 +15,32 @@ CORRIDOR_BBOXES = {
     "I-90": (41.0, -122.5, 48.0, -71.0),
 }
 
+# Load pre-fetched route geometry
+_STATIC_ROUTES = {}
+_static_path = os.path.join(os.path.dirname(__file__), "static_routes.json")
+if os.path.exists(_static_path):
+    with open(_static_path) as f:
+        _STATIC_ROUTES = json.load(f)
+
 
 def fetch_route(corridor: str) -> pd.DataFrame:
-    """Query Overpass for interstate geometry. Returns DataFrame with lat, lon, sequence."""
+    """Return route geometry as DataFrame with lat, lon, sequence columns.
+    Uses pre-fetched static data. Falls back to Overpass API if not available."""
+
+    # Use static data first
+    if corridor in _STATIC_ROUTES:
+        df = pd.DataFrame(_STATIC_ROUTES[corridor])
+        if not df.empty:
+            return df
+
+    # Fallback: live Overpass query
+    return _fetch_route_live(corridor)
+
+
+def _fetch_route_live(corridor: str) -> pd.DataFrame:
+    """Query Overpass for interstate geometry."""
+    import requests
+
     bbox = CORRIDOR_BBOXES.get(corridor)
     if bbox is None:
         raise ValueError(f"Unknown corridor: {corridor}")
@@ -52,7 +76,6 @@ def fetch_route(corridor: str) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame(columns=["lat", "lon", "sequence"])
 
-    # Remove duplicate consecutive points and sort west-to-east for consistent direction
     df = df.drop_duplicates(subset=["lat", "lon"]).reset_index(drop=True)
     df = df.sort_values("lon").reset_index(drop=True)
     df["sequence"] = range(len(df))

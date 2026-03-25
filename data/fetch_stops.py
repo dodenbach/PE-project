@@ -1,6 +1,7 @@
-"""Fetch existing truck stops from Overpass API."""
+"""Fetch existing truck stops — static data with Overpass API fallback."""
 
-import requests
+import json
+import os
 import pandas as pd
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -8,9 +9,28 @@ OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 MAJOR_OPERATORS = {"Pilot", "Love's", "Flying J", "TA", "Petro", "TravelCenters of America",
                    "Pilot Flying J", "Loves", "Love's Travel Stops"}
 
+# Load pre-fetched stop data
+_STATIC_STOPS = {}
+_static_path = os.path.join(os.path.dirname(__file__), "static_stops.json")
+if os.path.exists(_static_path):
+    with open(_static_path) as f:
+        _STATIC_STOPS = json.load(f)
+
 
 def fetch_stops(corridor: str) -> pd.DataFrame:
-    """Query Overpass for truck stops along a corridor. Returns DataFrame with name, operator, lat, lon, is_major."""
+    """Return truck stops as DataFrame. Uses pre-fetched static data, falls back to Overpass."""
+
+    if corridor in _STATIC_STOPS:
+        df = pd.DataFrame(_STATIC_STOPS[corridor])
+        if not df.empty:
+            return df
+
+    return _fetch_stops_live(corridor)
+
+
+def _fetch_stops_live(corridor: str) -> pd.DataFrame:
+    """Query Overpass for truck stops along a corridor."""
+    import requests
     from data.fetch_routes import CORRIDOR_BBOXES
 
     bbox = CORRIDOR_BBOXES.get(corridor)
@@ -18,7 +38,6 @@ def fetch_stops(corridor: str) -> pd.DataFrame:
         raise ValueError(f"Unknown corridor: {corridor}")
 
     s, w, n, e = bbox
-    # Widen bbox slightly for stops near but not exactly on the route
     pad = 0.3
     s, w, n, e = s - pad, w - pad, n + pad, e + pad
 
