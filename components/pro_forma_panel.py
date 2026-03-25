@@ -9,7 +9,7 @@ from analysis.pro_forma import (
 )
 
 
-def render_pro_forma(site_context: dict | None = None):
+def render_pro_forma(site_context=None):
     """Render the pro forma panel with inputs and outputs."""
 
     # Defaults from site context if available

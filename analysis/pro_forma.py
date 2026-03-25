@@ -154,7 +154,7 @@ def build_sensitivity_table(
     return df
 
 
-def _calculate_irr(cash_flows: list, max_iter: int = 1000) -> float | None:
+def _calculate_irr(cash_flows: list, max_iter: int = 1000):
     """Calculate IRR using Newton's method."""
     if not cash_flows or cash_flows[0] >= 0:
         return None
